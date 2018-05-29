@@ -1,12 +1,46 @@
+class Point
+  attr_accessor :x, :y
+
+  def initialize x, y
+    @x = x
+    @y = y
+  end
+end
+
+class Field
+  attr_reader :current, :wall, :limit, :goal
+
+  def initialize
+    @current = Point.new(19, 19)
+    @wall = [
+      Point.new(7, 1),
+      Point.new(7, 2),
+      Point.new(7, 3),
+      Point.new(7, 4),
+      Point.new(7, 5),
+      Point.new(7, 6),
+      Point.new(6, 6),
+      Point.new(5, 6),
+      Point.new(4, 6),
+      Point.new(3, 6),
+      Point.new(19, 15),
+      Point.new(18, 15),
+      Point.new(17, 15),
+      Point.new(16, 15),
+      Point.new(15, 15),
+      Point.new(14, 15),
+      Point.new(14, 16),
+      Point.new(14, 17),
+      Point.new(14, 18),
+    ]
+    @limit = Point.new(20, 20)
+    @goal = Point.new(5, 0)
+  end
+end
+
 class AStarSearch
   def initialize
-    @current_x = 24
-    @current_y = 23
-    @wall_x = [3, 4, 5, 6, 7, 12, 25, 31, 24, 28, 15, 13].freeze
-    @wall_y = [2, 3, 6, 7, 8, 2, 6, 3, 5, 2, 3, 5].freeze
-    @x_limit = 32
-    @y_limit = 32
-    @goal = [5, 0].freeze
+    @field = Field.new
     @open_list = []
     @closed_list = []
   end
@@ -14,11 +48,12 @@ class AStarSearch
   def search
     @open_list << {
       prev: [nil, nil],
-      place: [@current_x, @current_y],
-      heuristic: heuristic(@current_x, @current_y)
+      place: [@field.current.x, @field.current.y],
+      heuristic: heuristic(@field.current.x, @field.current.y)
     }
 
     while true
+    # 30.times do
       if @open_list.length == 0
         puts "失敗"
         break
@@ -63,75 +98,55 @@ class AStarSearch
       children.delete_if{ |child| is_wall?(child) }
       @closed_list << best_state
 
-      # 子ノードの集合からclosedに含まれないn'に対してopenに追加
       children.each do |child|
-        if @closed_list.select{ |closed| closed[:place] == child[:place] }.length == 0
+        if !(@open_list.include?(child)) && !(@closed_list.include?(child))
           @open_list << child
+        elsif @open_list.include? child
+          @open_list.select{ |data| data[:place] == child[:place] }.each do |open_dup|
+            if child[:heuristic] < open_dup[:heuristic]
+              @open_list.delete(open_dup)
+              @open_list << child
+            end
+          end
+        elsif @closed_list.include? child
+          @closed_list.select{ |data| data[:place] == child[:place] }.each do |closed_dup|
+            if child[:heuristic] < closed_dup[:heuristic]
+              @closed_list.delete(closed_dup)
+              @open_list << child
+            end
+          end
         end
-      end
-
-      # open_listの中で、placeが同じであり、よりコストが小さいものをopen_listに残し、残りを削除
-      refined = []
-      grouped = @open_list.group_by{ |data| data[:place] }
-      grouped.each do |key, value|
-        value.sort!{ |elem_a, elem_b|
-          elem_a[:heuristic] <=> elem_b[:heuristic]
-        }
-        refined << value[0]
-      end
-      @open_list = refined
-
-      # open_list中のplaceで、closed_listに含まれるplaceと一致するものを抽出し、closed_listに含まれるもののコストがより
-      # 小さいならば、closed_listからそれを削除しopen_listに加える。コストが大きかったほうはopen_listから消える
-      grouped = @closed_list.group_by{ |data| data[:place] }
-      @open_list.inject([]) {|ary, value|
-        ary << value if grouped.keys.include? value[:place]
-        ary
-      }.each do |repetition|
-        min_heuristic = grouped[repetition[:place]]
-                        .each_with_index.inject do |min, (close, index)|
-          min = close if index == 0 || close[:heuristic] < repetition[:heuristic]
-          min
-        end
-        @open_list << min_heuristic
-        @closed_list.delete(min_heuristic)
-        @open_list.delete_if{ |value|
-          value[:place] == min_heuristic[:place] && value[:heuristic] > min_heuristic[:place]
-        }
       end
 
       @open_list.uniq!
 
-      # visualize()
+      visualize()
     end
   end
 
-  def visualize options = {open_list: true}
+  def visualize options = {open_list: false}
     field = []
-    @x_limit.times do |row|
+    @field.limit.x.times do |row|
       ary = []
-      @y_limit.times do |col|
+      @field.limit.y.times do |col|
         ary << 0
       end
       field << ary
     end
 
-    # ゴール場所の可視化
-    field[@goal[0]][@goal[1]] = "G"
+    field[@field.goal.x][@field.goal.y] = "G"
 
-    # 壁の場所の可視化
-    @wall_x.each do |x|
-      @wall_y.each{ |y| field[x][y] = 1 }
+    @field.wall.each do |wall|
+      field[wall.x][wall.y] = 1
     end
 
     @closed_list.each do |close|
       field[close[:place][0]][close[:place][1]] = "*"
     end
 
-    if options[:open_list]
-      @open_list.each do |close|
-        field[close[:place][0]][close[:place][1]] = "+"
-      end
+
+    @open_list.each do |close|
+      field[close[:place][0]][close[:place][1]] = "+"
     end
 
     field.each do |f|
@@ -155,30 +170,31 @@ class AStarSearch
   end
 
   def heuristic x, y
-    h = (x - @goal[0]) + (y - @goal[1])
-    g = (@current_x - x) + (@current_y - y)
+    h = (x - @field.goal.x).abs + (y - @field.goal.y).abs
+    g = (@field.current.x - x).abs + (@field.current.y - y).abs
 
-    (h+g).abs
+    h + g
   end
 
   def astar_heuristic prev_x, prev_y, x, y
-    h = ((x - @goal[0]) + (y - @goal[1])).abs
-    g = ((prev_x - @current_x) + (prev_y - @current_y)).abs
-    c = ((x - prev_x) + (y - prev_y)).abs
+    h = (x - @field.goal.x).abs + (y - @field.goal.y).abs
+    g = heuristic(prev_x, prev_y) - ((prev_x - @field.goal.x).abs + (y - @field.goal.y).abs)
+    cost = (x - prev_x).abs + (y - prev_y).abs
 
-    return h + g + c
+    return h + g + cost
   end
 
   def is_wall? state
-    x = state[:place][0]
-    y = state[:place][1]
+    point = Point.new(state[:place][0], state[:place][1])
+    wall_x = @field.wall.map{ |wall| wall.x }
+    wall_y = @field.wall.map{ |wall| wall.y }
 
-    (@wall_x.include?(x) && @wall_y.include?(y)) ||
-    x < 0 || x >= @x_limit || y < 0 || y >= @y_limit
+    (wall_x.include?(point.x) && wall_y.include?(point.y)) || point.x < 0 ||
+    point.x >= @field.limit.x || point.y < 0 || point.y >= @field.limit.y
   end
 
   def is_goal? state
-    state[:place][0] == @goal[0] && state[:place][1] == @goal[1]
+    state[:place][0] == @field.goal.x && state[:place][1] == @field.goal.y
   end
 end
 
@@ -187,7 +203,7 @@ result = Benchmark.realtime do
   a = AStarSearch.new()
   a.search()
   a.visualize({
-    open_list: true
+    open_list: false
   })
 end
 

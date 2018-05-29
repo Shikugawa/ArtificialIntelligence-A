@@ -1,20 +1,54 @@
+class Point
+  attr_accessor :x, :y
+
+  def initialize x, y
+    @x = x
+    @y = y
+  end
+end
+
+class Field
+  attr_reader :current, :wall, :limit, :goal
+
+  def initialize
+    @current = Point.new(19, 19)
+    @wall = [
+      Point.new(7, 1),
+      Point.new(7, 2),
+      Point.new(7, 3),
+      Point.new(7, 4),
+      Point.new(7, 5),
+      Point.new(7, 6),
+      Point.new(6, 6),
+      Point.new(5, 6),
+      Point.new(4, 6),
+      Point.new(3, 6),
+      Point.new(19, 15),
+      Point.new(18, 15),
+      Point.new(17, 15),
+      Point.new(16, 15),
+      Point.new(15, 15),
+      Point.new(14, 15),
+      Point.new(14, 16),
+      Point.new(14, 17),
+      Point.new(14, 18),
+    ]
+    @limit = Point.new(20, 20)
+    @goal = Point.new(5, 0)
+  end
+end
+
 class GreedySearch
   def initialize
-    @current_x = 24
-    @current_y = 23
-    @wall_x = [3, 4, 5, 6, 7, 12, 25, 31, 24, 28, 15, 13].freeze
-    @wall_y = [2, 3, 6, 7, 8, 2, 6, 3, 5, 2, 3, 5].freeze
-    @x_limit = 32
-    @y_limit = 32
-    @goal = [5, 0].freeze
+    @field = Field.new
     @open_list = []
     @closed_list = []
   end
 
   def search
     @open_list << {
-      place: [@current_x, @current_y],
-      heuristic: heuristic(@current_x, @current_y)
+      place: [@field.current.x, @field.current.y],
+      heuristic: heuristic(@field.current.x, @field.current.y)
     }
 
     while true
@@ -50,52 +84,53 @@ class GreedySearch
           heuristic: heuristic(best_state_x, best_state_y-1)
         }
       ]
-      # p children
+
       children.delete_if{ |child| is_wall?(child) }
 
+      visualize best_state
       @closed_list << best_state
+
       @open_list += children.delete_if{ |child| @closed_list.include? child }
       @open_list.uniq!
-
-      # puts " "
-      # visualize
-      # p @open_list
-      # puts " "
     end
   end
 
-  def visualize options = {open_list: false}
+  def visualize best_state, options = {open_list: false}
     field = []
-    @x_limit.times do |row|
+
+    @field.limit.x.times do |row|
       ary = []
-      @y_limit.times do |col|
+      @field.limit.y.times do |col|
         ary << 0
       end
       field << ary
     end
-
+    # p field
+    field[best_state[:place][0]][best_state[:place][1]] = "X"
     # ゴール場所の可視化
-    field[@goal[0]][@goal[1]] = "G"
+    field[@field.goal.x][@field.goal.y] = "G"
 
     # 壁の場所の可視化
-    @wall_x.each do |x|
-      @wall_y.each{ |y| field[x][y] = 1 }
+    @field.wall.each do |wall|
+      field[wall.x][wall.y] = 1
     end
 
     @closed_list.each do |close|
       field[close[:place][0]][close[:place][1]] = "*"
     end
 
-    if options[:open_list]
+    # if options[:open_list]
       @open_list.each do |close|
         field[close[:place][0]][close[:place][1]] = "+"
       end
-    end
+    # end
 
     field.each do |f|
       f.each { |elem| print elem.to_s + " " }
       print "\n"
     end
+
+    puts "\n"
   end
 
   private
@@ -111,19 +146,20 @@ class GreedySearch
   end
 
   def heuristic x, y
-    (x - @goal[0]).abs + (y - @goal[1]).abs
+    (x - @field.goal.x).abs + (y - @field.goal.y).abs
   end
 
   def is_wall? state
-    x = state[:place][0]
-    y = state[:place][1]
+    point = Point.new(state[:place][0], state[:place][1])
+    wall_x = @field.wall.map{ |wall| wall.x }
+    wall_y = @field.wall.map{ |wall| wall.y }
 
-    (@wall_x.include?(x) && @wall_y.include?(y)) ||
-    x < 0 || x >= @x_limit || y < 0 || y >= @y_limit
+    (wall_x.include?(point.x) && wall_y.include?(point.y)) || point.x < 0 ||
+    point.x >= @field.limit.x || point.y < 0 || point.y >= @field.limit.y
   end
 
   def is_goal? state
-    state[:place][0] == @goal[0] && state[:place][1] == @goal[1]
+    state[:place][0] == @field.goal.x && state[:place][1] == @field.goal.y
   end
 end
 
@@ -131,9 +167,6 @@ require "benchmark"
 result = Benchmark.realtime do
   g = GreedySearch.new()
   g.search()
-  g.visualize({
-    open_list: true
-  })
 end
 
 puts "処理概要 #{result}s"
