@@ -5,6 +5,10 @@ class Point
     @x = x
     @y = y
   end
+
+  def get_point_array
+    [@x, @y]
+  end
 end
 
 class Field
@@ -23,18 +27,19 @@ class Field
       Point.new(5, 6),
       Point.new(4, 6),
       Point.new(3, 6),
-      Point.new(19, 15),
-      Point.new(18, 15),
-      Point.new(17, 15),
-      Point.new(16, 15),
-      Point.new(15, 15),
-      Point.new(14, 15),
-      Point.new(14, 16),
-      Point.new(14, 17),
-      Point.new(14, 18),
+      Point.new(18, 13),
+      Point.new(17, 13),
+      Point.new(16, 13),
+      Point.new(15, 13),
+      Point.new(14, 13),
+      Point.new(13, 13),
+      Point.new(13, 14),
+      Point.new(13, 15),
+      Point.new(13, 16),
+      Point.new(13, 17)
     ]
     @limit = Point.new(20, 20)
-    @goal = Point.new(5, 0)
+    @goal = Point.new(3, 1)
   end
 end
 
@@ -47,19 +52,20 @@ class GreedySearch
 
   def search
     @open_list << {
-      place: [@field.current.x, @field.current.y],
+      place: Point.new(@field.current.x, @field.current.y),
       heuristic: heuristic(@field.current.x, @field.current.y)
     }
 
     while true
+    # 50.times do
       if @open_list.length == 0
         puts "失敗"
         break
       end
 
       best_state = fetch()
-      best_state_x = best_state[:place][0]
-      best_state_y = best_state[:place][1]
+      best_state_x = best_state[:place].x
+      best_state_y = best_state[:place].y
 
       if is_goal? best_state
         puts "成功"
@@ -68,28 +74,29 @@ class GreedySearch
 
       children = [
         {
-          place: [best_state_x+1, best_state_y],
+          place: Point.new(best_state_x+1, best_state_y),
           heuristic: heuristic(best_state_x+1, best_state_y)
         },
         {
-          place: [best_state_x, best_state_y+1],
+          place: Point.new(best_state_x, best_state_y+1),
           heuristic: heuristic(best_state_x, best_state_y+1)
         },
         {
-          place: [best_state_x-1, best_state_y],
+          place: Point.new(best_state_x-1, best_state_y),
           heuristic: heuristic(best_state_x-1, best_state_y)
         },
         {
-          place: [best_state_x, best_state_y-1],
+          place: Point.new(best_state_x, best_state_y-1),
           heuristic: heuristic(best_state_x, best_state_y-1)
         }
       ]
 
-      children.delete_if{ |child| is_wall?(child) }
-
+      # p best_state
       visualize best_state
+      # p children
+      children.delete_if{ |child| is_wall?(child) }
+      # p children
       @closed_list << best_state
-
       @open_list += children.delete_if{ |child| @closed_list.include? child }
       @open_list.uniq!
     end
@@ -105,26 +112,24 @@ class GreedySearch
       end
       field << ary
     end
-    # p field
-    field[best_state[:place][0]][best_state[:place][1]] = "X"
-    # ゴール場所の可視化
+
     field[@field.goal.x][@field.goal.y] = "G"
 
-    # 壁の場所の可視化
     @field.wall.each do |wall|
       field[wall.x][wall.y] = 1
     end
 
     @closed_list.each do |close|
-      field[close[:place][0]][close[:place][1]] = "*"
+      field[close[:place].x][close[:place].y] = "*"
     end
 
     # if options[:open_list]
       @open_list.each do |close|
-        field[close[:place][0]][close[:place][1]] = "+"
+        field[close[:place].x][close[:place].y] = "+"
       end
     # end
 
+    field[best_state[:place].x][best_state[:place].y] = "="
     field.each do |f|
       f.each { |elem| print elem.to_s + " " }
       print "\n"
@@ -146,20 +151,21 @@ class GreedySearch
   end
 
   def heuristic x, y
-    (x - @field.goal.x).abs + (y - @field.goal.y).abs
+    Math.sqrt((x - @field.goal.x)**2 + (y - @field.goal.y)**2)
   end
 
   def is_wall? state
-    point = Point.new(state[:place][0], state[:place][1])
+    point = state[:place]
     wall_x = @field.wall.map{ |wall| wall.x }
     wall_y = @field.wall.map{ |wall| wall.y }
+    wall_ary = wall_x.zip(wall_y)
 
-    (wall_x.include?(point.x) && wall_y.include?(point.y)) || point.x < 0 ||
+    wall_ary.include?(point.get_point_array) || point.x < 0 ||
     point.x >= @field.limit.x || point.y < 0 || point.y >= @field.limit.y
   end
 
   def is_goal? state
-    state[:place][0] == @field.goal.x && state[:place][1] == @field.goal.y
+    state[:place].get_point_array == @field.goal.get_point_array
   end
 end
 
