@@ -1,45 +1,22 @@
-class Point
-  attr_accessor :x, :y
-
-  def initialize x, y
-    @x = x
-    @y = y
-  end
-
-  def get_point_array
-    [@x, @y]
-  end
-end
-
 class Field
   attr_reader :current, :wall, :limit, :goal
 
   def initialize
-    @current = Point.new(19, 19)
+    @current = [19, 19]
     @wall = [
-      Point.new(7, 1),
-      Point.new(7, 2),
-      Point.new(7, 3),
-      Point.new(7, 4),
-      Point.new(7, 5),
-      Point.new(7, 6),
-      Point.new(6, 6),
-      Point.new(5, 6),
-      Point.new(4, 6),
-      Point.new(3, 6),
-      Point.new(18, 13),
-      Point.new(17, 13),
-      Point.new(16, 13),
-      Point.new(15, 13),
-      Point.new(14, 13),
-      Point.new(13, 13),
-      Point.new(13, 14),
-      Point.new(13, 15),
-      Point.new(13, 16),
-      Point.new(13, 17)
+      [7, 1],
+      [7, 2],
+      [7, 3],
+      [7, 4],
+      [7, 5],
+      [7, 6],
+      [6, 6],
+      [5, 6],
+      [4, 6],
+      [3, 6],
     ]
-    @limit = Point.new(20, 20)
-    @goal = Point.new(3, 1)
+    @limit = [20, 20]
+    @goal = [3, 3]
   end
 end
 
@@ -53,12 +30,13 @@ class AStarSearch
   # h: ゴールと現在地の距離、f: ヒューリスティック関数
   def search
     @open_list << {
-      prev: Point.new(nil, nil),
-      place: Point.new(@field.current.x, @field.current.y),
+      prev: [nil, nil],
+      place: [@field.current[0], @field.current[1]],
       h: distance(@field.current, @field.goal),
-      f: 0
+      f: distance(@field.current, @field.goal)
     }
 
+    # 30.times do
     while true
       if @open_list.length == 0
         puts "失敗"
@@ -75,27 +53,27 @@ class AStarSearch
       children = [
         {
           prev: best_state[:place],
-          place: Point.new(best_state[:place].x + 1, best_state[:place].y),
-          h: distance(Point.new(best_state[:place].x + 1, best_state[:place].y), @field.goal),
-          f: 0
+          place: [best_state[:place][0] + 1, best_state[:place][1]],
+          h: distance([best_state[:place][0] + 1, best_state[:place][1]], @field.goal),
+          f: nil
         },
         {
           prev: best_state[:place],
-          place: Point.new(best_state[:place].x, best_state[:place].y + 1),
-          h: distance(Point.new(best_state[:place].x, best_state[:place].y + 1), @field.goal),
-          f: 0
+          place: [best_state[:place][0], best_state[:place][1] + 1],
+          h: distance([best_state[:place][0], best_state[:place][1] + 1], @field.goal),
+          f: nil
         },
         {
           prev: best_state[:place],
-          place: Point.new(best_state[:place].x - 1, best_state[:place].y),
-          h: distance(Point.new(best_state[:place].x - 1, best_state[:place].y), @field.goal),
-          f: 0
+          place: [best_state[:place][0] - 1, best_state[:place][1]],
+          h: distance([best_state[:place][0] - 1, best_state[:place][1]], @field.goal),
+          f: nil
         },
         {
           prev: best_state[:place],
-          place: Point.new(best_state[:place].x, best_state[:place].y - 1),
-          h: distance(Point.new(best_state[:place].x, best_state[:place].y - 1), @field.goal),
-          f: 0
+          place: [best_state[:place][0], best_state[:place][1] - 1],
+          h: distance([best_state[:place][0], best_state[:place][1] - 1], @field.goal),
+          f: nil
         }
       ]
 
@@ -103,63 +81,72 @@ class AStarSearch
       @closed_list << best_state
 
       children.each do |child|
-        open_dup = @open_list.find{ |item|
-          item[:place].get_point_array == child[:place].get_point_array
-        }
+        dist = distance(best_state[:place], child[:place])
+        g = best_state[:f] - best_state[:h]
+        f_pred = dist + g + child[:h]
 
+        open_dup = @open_list.find{ |item|
+          item[:place] == child[:place]
+        }
         if open_dup
-          if astar_heuristic(best_state, open_dup, child) < open_dup[:f]
-            open_dup[:f] = astar_heuristic(best_state, open_dup, child)
+          if f_pred < open_dup[:f]
+            @open_list.delete(open_dup)
+            open_dup[:f] = f_pred
             open_dup[:prev] = best_state[:place]
+            @open_list << open_dup
           end
         else
           closed_dup = @closed_list.find{ |item|
-            item[:place].get_point_array == child[:place].get_point_array
+            item[:place] == child[:place]
           }
 
           if closed_dup
-            if astar_heuristic(best_state, closed_dup, child) < closed_dup[:f]
-              closed_dup[:f] = astar_heuristic(best_state, closed_dup, child)
+            if f_pred < closed_dup[:f]
+              closed_dup[:f] = f_pred
               closed_dup[:prev] = best_state[:place]
               @open_list << closed_dup
               @closed_list.delete(closed_dup)
             end
           else
-            child[:f] = astar_heuristic(best_state, child, child)
+            child[:f] = f_pred
+            child[:prev] = best_state[:place]
             @open_list << child
           end
         end
       end
 
+      # 重複削除
       @open_list.uniq!
       visualize(best_state)
     end
   end
 
-  def visualize current, options = {open_list: false}
+  def visualize options = {open_list: false}
     field = []
-    @field.limit.x.times do |row|
+
+    @field.limit[0].times do |row|
       ary = []
-      @field.limit.y.times do |col|
+      @field.limit[1].times do |col|
         ary << 0
       end
       field << ary
     end
 
-    field[current[:place].x][current[:place].y] = "X"
-    field[@field.goal.x][@field.goal.y] = "G"
+    field[@field.goal[0]][@field.goal[1]] = "G"
 
     @field.wall.each do |wall|
-      field[wall.x][wall.y] = 1
+      field[wall[0]][wall[1]] = 1
     end
 
     @closed_list.each do |close|
-      field[close[:place].x][close[:place].y] = "*"
+      field[close[:place][0]][close[:place][1]] = "*"
     end
 
-    @open_list.each do |close|
-      field[close[:place].x][close[:place].y] = "+"
-    end
+    # if options[:open_list]
+      @open_list.each do |close|
+        field[close[:place][0]][close[:place][1]] = "+"
+      end
+    # end
 
     field.each do |f|
       f.each { |elem| print elem.to_s + " " }
@@ -182,7 +169,7 @@ class AStarSearch
   end
 
   def distance a, b
-    Math.sqrt((a.x - b.x)**2 + (a.y - b.y)**2)
+    Math.sqrt((a[0] - b[0])**2 + (a[1] - b[1])**2)
   end
 
   def astar_heuristic best_state, dup, child
@@ -195,16 +182,13 @@ class AStarSearch
 
   def is_wall? state
     point = state[:place]
-    wall_x = @field.wall.map{ |wall| wall.x }
-    wall_y = @field.wall.map{ |wall| wall.y }
-    wall_ary = wall_x.zip(wall_y)
 
-    wall_ary.include?(point.get_point_array) || point.x < 0 ||
-    point.x >= @field.limit.x || point.y < 0 || point.y >= @field.limit.y
+    @field.wall.include?(point) || point[0] < 0 ||
+    point[0] >= @field.limit[0] || point[1] < 0 || point[1] >= @field.limit[1]
   end
 
   def is_goal? state
-    state[:place].get_point_array == @field.goal.get_point_array
+    state[:place] == @field.goal
   end
 end
 
@@ -214,4 +198,5 @@ result = Benchmark.realtime do
   a.search()
 end
 
+puts @open_list
 puts "処理概要 #{result}s"

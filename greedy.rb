@@ -26,20 +26,10 @@ class Field
       Point.new(6, 6),
       Point.new(5, 6),
       Point.new(4, 6),
-      Point.new(3, 6),
-      Point.new(18, 13),
-      Point.new(17, 13),
-      Point.new(16, 13),
-      Point.new(15, 13),
-      Point.new(14, 13),
-      Point.new(13, 13),
-      Point.new(13, 14),
-      Point.new(13, 15),
-      Point.new(13, 16),
-      Point.new(13, 17)
+      Point.new(3, 6)
     ]
     @limit = Point.new(20, 20)
-    @goal = Point.new(3, 1)
+    @goal = Point.new(3, 3)
   end
 end
 
@@ -98,7 +88,7 @@ class GreedySearch
       # p children
       @closed_list << best_state
       @open_list += children.delete_if{ |child| @closed_list.include? child }
-      @open_list.uniq!
+      # @open_list.uniq!
     end
   end
 
