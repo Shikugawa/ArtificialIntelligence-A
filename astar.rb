@@ -1,26 +1,48 @@
 class Field
   attr_reader :current, :wall, :limit, :goal
+  attr_accessor :field_map_state
 
   def initialize
-    @current = [19, 19]
+    @field_map_state = []
+
+    @current = [3, 3]
     @wall = [
-      [7, 1],
-      [7, 2],
-      [7, 3],
-      [7, 4],
-      [7, 5],
-      [7, 6],
-      [6, 6],
-      [5, 6],
-      [4, 6],
-      [3, 6],
+      [11, 0], [11, 1], [11, 2], [11, 3],
+      [11, 4], [11, 5], [11, 6], [11, 7],
+      [11, 8], [11, 9], [11, 10], [11, 11],
+      [10, 11], [9, 11], [8, 11], [7, 11],
+      [13, 16], [14, 16], [15, 16], [16, 16],
+      [16, 15], [16, 14], [16, 13]
     ]
     @limit = [20, 20]
-    @goal = [3, 3]
+    @goal = [19, 19]
+  end
+
+  def generate_field
+    field = []
+
+    @limit[0].times do |row|
+      ary = []
+      @limit[1].times do |col|
+        ary << '-'
+      end
+      field << ary
+    end
+
+    field[@goal[0]][@goal[1]] = "G"
+
+    @wall.each do |wall|
+      field[wall[0]][wall[1]] = 1
+    end
+
+    yield(field) if block_given?
+    return field
   end
 end
 
 class AStarSearch
+  attr_reader :field, :closed_list
+
   def initialize
     @field = Field.new
     @open_list = []
@@ -85,7 +107,7 @@ class AStarSearch
         g = best_state[:f] - best_state[:h]
         f_pred = dist + g + child[:h]
 
-        open_dup = @open_list.find{ |item|
+        open_dup = @open_list.lazy.find{ |item|
           item[:place] == child[:place]
         }
         if open_dup
@@ -96,7 +118,7 @@ class AStarSearch
             @open_list << open_dup
           end
         else
-          closed_dup = @closed_list.find{ |item|
+          closed_dup = @closed_list.lazy.find{ |item|
             item[:place] == child[:place]
           }
 
@@ -117,7 +139,18 @@ class AStarSearch
 
       # 重複削除
       @open_list.uniq!
-      visualize(best_state)
+      @field.field_map_state << visualize(best_state)
+    end
+
+    @field.field_map_state.each_with_index do |state, index|
+      if index % 5 == 0 || @field.field_map_state.length == index + 1
+        puts "#{index}回の試行"
+        state.each do |f|
+          f.each { |elem| print elem.to_s + " " }
+          print "\n"
+        end
+        puts "\n"
+      end
     end
   end
 
@@ -142,18 +175,12 @@ class AStarSearch
       field[close[:place][0]][close[:place][1]] = "*"
     end
 
-    # if options[:open_list]
-      @open_list.each do |close|
-        field[close[:place][0]][close[:place][1]] = "+"
-      end
-    # end
 
-    field.each do |f|
-      f.each { |elem| print elem.to_s + " " }
-      print "\n"
+    @open_list.each do |close|
+      field[close[:place][0]][close[:place][1]] = "+"
     end
 
-    puts "\n"
+    return field
   end
 
   private
@@ -193,10 +220,36 @@ class AStarSearch
 end
 
 require "benchmark"
+
+a = AStarSearch.new()
 result = Benchmark.realtime do
-  a = AStarSearch.new()
   a.search()
 end
 
-puts @open_list
-puts "処理概要 #{result}s"
+a.field.field_map_state.each_with_index do |state, index|
+  if index % 5 == 0 || a.field.field_map_state.length == index + 1
+    puts "#{index}回の試行"
+    state.each do |f|
+      f.each { |elem| print elem.to_s + " " }
+      print "\n"
+    end
+    puts "\n"
+  end
+end
+
+field = a.field.generate_field do |f|
+  a.closed_list.inject([]){ |ary, item|
+    ary << item[:place]
+    ary
+  }.each do |data|
+    f[data[0]][data[1]] = "@"
+  end
+end
+
+puts "=======ゴール探索経路======="
+field.each do |f|
+  f.each { |elem| print elem.to_s + " " }
+  print "\n"
+end
+
+puts "処理時間 #{result}s"
